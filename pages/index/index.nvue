@@ -1,0 +1,300 @@
+<template>
+	<view>
+		<!--
+		<view class="status_bar">
+		</view>
+		-->
+		<view class="main">
+			<view class="map-container">
+				<map id="map" class="map" show-location="true" :markers="markers"></map>
+			</view>
+			<view class="input">
+				<input class="message" type="text" maxlength="128" v-model="message" />
+				<button type="primary" class="send-btn" size="mini" @click="send">send</button>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				message: '',
+				mapcontext: null,
+				markers: [],
+				messageList: []
+			}
+		},
+		methods: {
+			send() {
+				var self = this;
+				
+				self.reoladPosition(function() {
+					if (!self.message) {
+						return;
+					}
+					self.messageList.unshift({
+						latitude: self.latitude,
+						longitude: self.longitude,
+						message: self.message
+					});
+					self.sendWsMsg(self.message);
+					self.message = '';
+
+					// console.log(self.message);
+					// console.log(self.latitude, self.longitude);
+				});
+			},
+			showCallout() {
+				console.log('=== showCallout ===');
+				var self = this;
+				var tmpMarkers = [];
+				self.markers.forEach(obj => {
+					var now = Date.now();
+					if (now - obj.timeStamp < 2000) {
+						tmpMarkers.push(obj);
+					}
+				});
+				for (var i = 0; i < 10; i++) {
+					var msgObj = self.messageList.shift();
+					if (!msgObj) {
+						break;
+					}
+					var marker = self.createMarker(null, msgObj.message, msgObj.latitude, msgObj.longitude);
+					tmpMarkers.push(marker);
+				}
+				
+				var id = 1;
+				tmpMarkers.forEach(obj => {
+					obj.id = id;
+					id++;
+				});
+				self.markers = tmpMarkers;
+				// console.log(self.markers);
+				
+				//console markers
+				self.markers.forEach(obj => {
+					console.log(obj.id, obj.callout.content);
+				});
+				//console end
+				
+				setTimeout(()=> {
+					self.showCallout();
+				}, 500);
+			},
+			createMarker(id, content, latitude, longitude) {
+				return {
+					id: id,
+					latitude: latitude,
+					longitude: longitude,
+					iconPath: '/static/aa.png',
+					timeStamp: Date.now(),
+					callout: {
+						display: 'ALWAYS',
+						color: '#999',
+						padding: 8,
+						borderRadius: 10,
+						fontSize: 14,
+						content: content
+					}
+				};
+			},
+			reoladPosition(callback) {
+				var self = this;
+				//本地测试暂时注释
+				// self.getLocation((res) => {
+				// 	console.log('reoladPosition: ', JSON.stringify(res));
+				// 	self.mapcontext.moveToLocation({
+				// 		latitude: res.latitude,
+				// 		longitude: res.longitude
+				// 	});
+				// 	self.latitude = res.latitude;
+				// 	self.longitude = res.longitude;
+				// 	callback && callback(res);
+				// });
+				
+				//test
+				callback && callback();
+			},
+			getLocation(callback) {
+				uni.getLocation({
+					type: 'gcj02',
+					success(res) {
+						console.log(res);
+						callback && callback(res);
+					}
+				});
+			},
+			resetRegion() {
+				var self = this;
+				self.mapcontext.getRegion({
+					complete(res) {
+						self.southwest = res.southwest;
+						self.northeast = res.northeast;
+					}
+				});
+				self.getLocation((res) => {
+					if (res.latitude != self.latitude || res.longitude != self.longitude) {
+						self.latitude = res.latitude;
+						self.longitude = res.longitude;
+						self.sendWsMsg(null);
+					}
+				});
+				
+				setTimeout(() => {
+					self.resetRegion();
+				}, 3000);
+			},
+			checkMsg(msgObj) {
+				var self = this;
+				if (msgObj.longitude > self.southwest.longitude && 
+						msgObj.longitude < self.northeast.longitude &&
+						msgObj.latitude > self.southwest.latitude &&
+						msgObj.latitude < self.northeast.latitude
+				) {
+					return true;
+				}
+				return false;
+			},
+			guid() {
+				return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+					var r = Math.random() * 16 | 0,
+						v = c == 'x' ? r : (r & 0x3 | 0x8);
+					return v.toString(16);
+				});
+			},
+			initWebSocket() {
+				var self = this;
+				//webSocket
+				self.sid = self.guid();
+				self.socketTask = uni.connectSocket({
+					url: 'ws://localhost/ws/' + sid,
+					complete: ()=> {}
+				});
+				socketTask.onOpen(() => {
+				  console.log('WebSocket连接已打开！');
+				});
+				socketTask.onError(() => {
+				  console.log('WebSocket连接打开失败，请检查！');
+				});
+				socketTask.onClose(() => {
+				  console.log('WebSocket连接关闭！');
+				});
+				socketTask.onMessage((res) => {
+				  console.log('收到服务器内容：' + res.data);
+					//TODO:
+					
+					// self.messageList.unshift({
+					// 	latitude: latitude,
+					// 	longitude: longitude,
+					// 	message: message
+					// });
+				});
+			},
+			sendWsMsg(msg) {
+				var self = this;
+				if (!self.sid || !self.socketTask) {
+					return;
+				}
+				var data = {
+					sid: self.sid,
+					message: msg,
+					longitude: self.longitude,
+					latitude: self.latitude
+				};
+				self.socketTask.send({
+					data: JSON.stringify(data)
+				});
+			},
+			test() {
+				var self = this;
+				// for (var i = 0; i < 10; i++) {
+				// 	self.messageList.push({
+				// 		latitude: 39.909 + (i/1000),
+				// 		longitude: 116.39742 + (i/1000),
+				// 		message: 'is ' + i
+				// 	});
+				// }
+				
+				self.mapcontext.getRegion({
+					complete(res) {
+						console.log('getRegion', res);
+					}
+				});
+				
+			}
+		},
+		onReady() {
+			var self = this;
+			self.mapcontext = uni.createMapContext('map', self);
+			console.log('on ready');
+			setTimeout(() => {
+				self.reoladPosition(() => {
+					self.sendWsMsg(null);
+				});
+				// self.showCallout();
+				// self.initWebSocket();
+			}, 1000);
+		}
+	}
+</script>
+
+<style>
+	.main {
+		background-color: #007AFF;
+		position: fixed;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+	}
+
+	.map-container {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 50px;
+		background-color: #DD524D;
+	}
+
+	.map {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+	}
+
+	.input {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #f0f0f0;
+		padding: 8px 15px;
+		padding-right: 90px;
+		height: 50px;
+	}
+
+	.message {
+		border: 1px solid #66afe9;
+		padding: 6px 12px;
+		font-size: 14px;
+		line-height: 14px;
+		color: #555;
+		background-color: #fff;
+		border-radius: 4px;
+		height: 34px;
+	}
+
+	.send-btn {
+		padding: 0 10px;
+		height: 30px;
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		width: 60px;
+	}
+</style>
