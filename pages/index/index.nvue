@@ -1,16 +1,12 @@
 <template>
 	<view>
-		<!--
-		<view class="status_bar">
-		</view>
-		-->
 		<view class="main">
 			<view class="map-container">
-				<map id="map" class="map" show-location="true" :markers="markers"></map>
+				<map id="map" class="map" show-location="true" :markers="markers" @callouttap="callouttap"></map>
 			</view>
 			<view class="input">
 				<input class="message" type="text" maxlength="128" v-model="message" />
-				<button type="primary" class="send-btn" size="mini" @click="send">send</button>
+				<button type="primary" class="send-btn" size="mini" @click="send">吐槽</button>
 			</view>
 		</view>
 	</view>
@@ -23,6 +19,7 @@
 				message: '',
 				mapcontext: null,
 				markers: [],
+				markerObjs: {},
 				messageList: []
 			}
 		},
@@ -30,10 +27,52 @@
 			send() {
 				var self = this;
 				
+				
+				//test
+				// var m1 = {
+				// 	id: 1,
+				// 	latitude: 23.073825,
+				// 	longitude: 113.286723,
+				// 	iconPath: '/static/marker.png',
+				// 	timeStamp: Date.now(),
+				// 	callout: {
+				// 		display: 'ALWAYS',
+				// 		color: '#999',
+				// 		padding: 5,
+				// 		borderRadius: 10,
+				// 		fontSize: 14,
+				// 		content: 'test',
+				// 		bgColor: '#00FFFF'
+				// 	},
+				// };
+				// self.markers = [m1];
+				// self.markers = [...self.markers];
+				
+				// setTimeout(()=>{
+				// 	self.markers = [];
+				// }, 3000)
+				
+				// return;
+				//test
+				
+				if (!self.message) {
+					return;
+				}
+				if (self.message.length > 40) {
+					uni.showToast({
+						title: '吐槽内容不能超过40字',
+						icon: 'none'
+					});
+					return;
+				}
+				
+				if (self.message.length > 20) {
+					var tmpMsg = self.message;
+					tmpMsg = tmpMsg.substr(0, 20) + '\n' + tmpMsg.substr(20);
+					self.message = tmpMsg;
+				}
+				
 				self.reoladPosition(function() {
-					if (!self.message) {
-						return;
-					}
 					self.messageList.unshift({
 						latitude: self.latitude,
 						longitude: self.longitude,
@@ -47,12 +86,12 @@
 				});
 			},
 			showCallout() {
-				console.log('=== showCallout ===');
+				// console.log('=== showCallout ===');
 				var self = this;
 				var tmpMarkers = [];
 				self.markers.forEach(obj => {
 					var now = Date.now();
-					if (now - obj.timeStamp < 2000) {
+					if (now - obj.timeStamp < 7000) {
 						tmpMarkers.push(obj);
 					}
 				});
@@ -65,18 +104,23 @@
 					tmpMarkers.push(marker);
 				}
 				
+				self.markerObjs = {};
 				var id = 1;
 				tmpMarkers.forEach(obj => {
 					obj.id = id;
+					self.markerObjs[id] = obj;
 					id++;
 				});
 				self.markers = tmpMarkers;
-				// console.log(self.markers);
+				setTimeout(() => {
+					self.markers = [...self.markers];
+				}, 5);
+				
 				
 				//console markers
-				self.markers.forEach(obj => {
-					console.log(obj.id, obj.callout.content);
-				});
+				// self.markers.forEach(obj => {
+				// 	console.log(obj.id);
+				// });
 				//console end
 				
 				setTimeout(()=> {
@@ -88,45 +132,47 @@
 					id: id,
 					latitude: latitude,
 					longitude: longitude,
-					iconPath: '/static/aa.png',
+					iconPath: '/static/marker.png',
 					timeStamp: Date.now(),
 					callout: {
 						display: 'ALWAYS',
 						color: '#999',
-						padding: 8,
+						padding: 5,
 						borderRadius: 10,
 						fontSize: 14,
-						content: content
+						content: content,
+						// bgColor: '#f0f0f0'
 					}
 				};
 			},
 			reoladPosition(callback) {
 				var self = this;
 				//本地测试暂时注释
-				// self.getLocation((res) => {
-				// 	console.log('reoladPosition: ', JSON.stringify(res));
-				// 	self.mapcontext.moveToLocation({
-				// 		latitude: res.latitude,
-				// 		longitude: res.longitude
-				// 	});
-				// 	self.latitude = res.latitude;
-				// 	self.longitude = res.longitude;
-				// 	callback && callback(res);
-				// });
+				self.getLocation((res) => {
+					console.log('reoladPosition: ', JSON.stringify(res));
+					self.mapcontext.moveToLocation({
+						latitude: res.latitude,
+						longitude: res.longitude
+					});
+					self.latitude = res.latitude;
+					self.longitude = res.longitude;
+					callback && callback(res);
+				});
 				
 				//test
-				callback && callback();
+				// callback && callback();
 			},
 			getLocation(callback) {
 				uni.getLocation({
 					type: 'gcj02',
 					success(res) {
-						console.log(res);
+						// console.log(res);
 						callback && callback(res);
 					}
 				});
 			},
 			resetRegion() {
+				// console.log('resetRegion...');
 				var self = this;
 				self.mapcontext.getRegion({
 					complete(res) {
@@ -135,7 +181,17 @@
 					}
 				});
 				self.getLocation((res) => {
-					if (res.latitude != self.latitude || res.longitude != self.longitude) {
+					var refresh = false;
+					if (!self.latitude || !self.longitude) {
+						refresh = true;
+					} else {
+						var latDif = Math.abs(res.latitude - self.latitude);
+						var longDif = Math.abs(res.longitude - self.longitude);
+						if (latDif > 0.001 || longDif > 0.001) {
+							refresh = true;
+						}
+					}
+					if (refresh) {
 						self.latitude = res.latitude;
 						self.longitude = res.longitude;
 						self.sendWsMsg(null);
@@ -148,6 +204,9 @@
 			},
 			checkMsg(msgObj) {
 				var self = this;
+				if (!self.southwest || !self.northeast) {
+					return false;
+				}
 				if (msgObj.longitude > self.southwest.longitude && 
 						msgObj.longitude < self.northeast.longitude &&
 						msgObj.latitude > self.southwest.latitude &&
@@ -167,29 +226,40 @@
 			initWebSocket() {
 				var self = this;
 				//webSocket
-				self.sid = self.guid();
+				if (!self.sid) {
+					self.sid = self.guid();
+				}
+				
 				self.socketTask = uni.connectSocket({
-					url: 'ws://localhost/ws/' + sid,
+					url: 'ws://119.29.139.42:9090/ws/' + self.sid,
 					complete: ()=> {}
 				});
-				socketTask.onOpen(() => {
+				self.socketTask.onOpen(() => {
 				  console.log('WebSocket连接已打开！');
+					self.reoladPosition((res) => {
+						self.sendWsMsg(null);
+					});
 				});
-				socketTask.onError(() => {
-				  console.log('WebSocket连接打开失败，请检查！');
+				self.socketTask.onError((e) => {
+				  console.log('WebSocket连接打开失败，请检查！', e);
+					self.socketTask = null;
 				});
-				socketTask.onClose(() => {
+				self.socketTask.onClose(() => {
 				  console.log('WebSocket连接关闭！');
+					self.socketTask = null;
 				});
-				socketTask.onMessage((res) => {
+				self.socketTask.onMessage((res) => {
 				  console.log('收到服务器内容：' + res.data);
-					//TODO:
-					
-					// self.messageList.unshift({
-					// 	latitude: latitude,
-					// 	longitude: longitude,
-					// 	message: message
-					// });
+					//TODO: 
+					var msg = JSON.parse(res.data);
+					var checkResult = self.checkMsg(msg);
+					if (checkResult) {
+						self.messageList.push({
+							latitude: msg.latitude,
+							longitude: msg.longitude,
+							message: msg.message
+						});
+					}
 				});
 			},
 			sendWsMsg(msg) {
@@ -207,6 +277,14 @@
 					data: JSON.stringify(data)
 				});
 			},
+			callouttap(e) {
+				var self = this;
+				var msgObj = self.markerObjs[e.detail.markerId];
+				console.log(msgObj);
+				if (msgObj) {
+						msgObj.timeStamp=Date.now()
+				}
+			},
 			test() {
 				var self = this;
 				// for (var i = 0; i < 10; i++) {
@@ -217,32 +295,45 @@
 				// 	});
 				// }
 				
-				self.mapcontext.getRegion({
-					complete(res) {
-						console.log('getRegion', res);
-					}
-				});
 				
 			}
 		},
 		onReady() {
 			var self = this;
+			if (self.socketTask) {
+				self.socketTask.close();
+			}
 			self.mapcontext = uni.createMapContext('map', self);
 			console.log('on ready');
+			
+			plus.device.getInfo({
+				success:function(e){
+					self.sid = e.uuid;
+				},
+			});
+			
 			setTimeout(() => {
-				self.reoladPosition(() => {
-					self.sendWsMsg(null);
-				});
-				// self.showCallout();
-				// self.initWebSocket();
+				self.reoladPosition();
+				self.initWebSocket();
+				self.showCallout();
+				self.resetRegion();
 			}, 1000);
+			
+			setInterval(() => {
+				if (self.socketTask) {
+					// console.log('socketTask is alive');
+				} else {
+					self.initWebSocket();
+				}
+			}, 5000);
+			
 		}
 	}
 </script>
 
 <style>
 	.main {
-		background-color: #007AFF;
+		/* background-color: #007AFF; */
 		position: fixed;
 		left: 0;
 		right: 0;
@@ -256,7 +347,7 @@
 		left: 0;
 		right: 0;
 		bottom: 50px;
-		background-color: #DD524D;
+		/* background-color: #DD524D; */
 	}
 
 	.map {
