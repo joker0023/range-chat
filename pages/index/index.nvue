@@ -114,7 +114,7 @@
 				self.markers = tmpMarkers;
 				setTimeout(() => {
 					self.markers = [...self.markers];
-				}, 5);
+				}, 10);
 				
 				
 				//console markers
@@ -168,6 +168,11 @@
 					success(res) {
 						// console.log(res);
 						callback && callback(res);
+					},
+					complete(res) {
+						// if (res.errMsg) {
+						// 	console.log('res: ', res);
+						// }
 					}
 				});
 			},
@@ -306,11 +311,11 @@
 			self.mapcontext = uni.createMapContext('map', self);
 			console.log('on ready');
 			
-			plus.device.getInfo({
-				success:function(e){
-					self.sid = e.uuid;
-				},
-			});
+			// plus.device.getInfo({
+			// 	success:function(e){
+			// 		self.sid = e.uuid;
+			// 	},
+			// });
 			
 			setTimeout(() => {
 				self.reoladPosition();

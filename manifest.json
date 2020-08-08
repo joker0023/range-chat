@@ -1,7 +1,7 @@
 {
     "name" : "range-chat",
     "appid" : "__UNI__D12C6B0",
-    "description" : "",
+    "description" : "随时随地吐槽",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -14,21 +14,16 @@
         "distribute" : {
             "android" : {
                 "permissions" : [
-                    "<uses-feature android:name=\"android.hardware.camera\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_LOCATION_EXTRA_COMMANDS\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_MOCK_LOCATION\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
-                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_LOGS\"/>",
-                    "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
-                    "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
-                    "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>"
-                ]
+                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>"
+                ],
+                "permissionPhoneState" : {
+                    "request" : "none"
+                }
             },
             "ios" : {},
             "sdkConfigs" : {
@@ -37,7 +32,8 @@
                         "appkey_ios" : "ef21a35449157b157220ab78f5144981",
                         "appkey_android" : "ef21a35449157b157220ab78f5144981"
                     }
-                }
+                },
+                "ad" : {}
             },
             "icons" : {
                 "android" : {
